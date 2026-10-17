@@ -1,44 +1,56 @@
-# [Project name]
+# Coffee Order Tracker
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+A real-time coffee shop order system for cashiers, baristas, and customers, with QR-linked order tracking and ready alerts.
 
 ## Run & Operate
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
+- `pnpm --filter @workspace/api-server run dev` — run the ASP.NET Core API and SignalR hub
+- `pnpm --filter @workspace/coffee-order-tracker run dev` — run the cashier, kitchen, and customer web app
 - `pnpm run typecheck` — full typecheck across all packages
 - `pnpm run build` — typecheck + build all packages
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
+- `dotnet build artifacts/api-server/dotnet/CoffeeOrderApi.csproj` — build the API
+- Required runtime: .NET 8
+- Order data is stored in a SQLite database created by the API on first run
 
 ## Stack
 
 - pnpm workspaces, Node.js 24, TypeScript 5.9
-- API: Express 5
-- DB: PostgreSQL + Drizzle ORM
-- Validation: Zod (`zod/v4`), `drizzle-zod`
+- API: ASP.NET Core 8 Web API + SignalR
+- DB: SQLite + Entity Framework Core 8
+- Web: React + Vite
+- API validation: ASP.NET Core model binding plus domain validation
 - API codegen: Orval (from OpenAPI spec)
-- Build: esbuild (CJS bundle)
+- Build: .NET SDK/MSBuild for the API; Vite for the web app
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `artifacts/api-server/dotnet/` — HTTP API, EF Core data model, seed data, and SignalR hub
+- `artifacts/coffee-order-tracker/src/` — cashier, kitchen, and customer interfaces
+- `lib/api-spec/openapi.yaml` — REST API contract and source for generated client hooks
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- ASP.NET Core and the frontend share the `/api` route; SignalR connects at `/api/hubs/orders`.
+- Kitchen clients join the kitchen group; customer clients join only their order-specific group.
+- SQLite is initialized and seeded with a small demo queue on the first API run.
+- Order prices are checked against the server menu, and status changes must follow Pending → Preparing → Ready → Completed.
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+- Cashiers build an order and show a QR code linking to its customer status page.
+- Baristas see active orders and advance preparation status.
+- Customers can follow status updates live and enable an audible ready alert.
 
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
+_No standing preferences recorded._
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- Keep `/api/hubs/orders` listed in the API artifact's configured paths; the preview proxy needs the explicit WebSocket route.
+- Run API code generation after changing the OpenAPI spec.
+- The SQLite database file is runtime data and should remain excluded from source control and deployment uploads.
 
 ## Pointers
 

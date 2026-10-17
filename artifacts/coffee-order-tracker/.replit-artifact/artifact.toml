@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Coffee Order Tracker"
+description = "A real-time coffee shop order system for cashiers, baristas, and customers. Create orders at checkout, track preparation from a QR-linked phone page, and notify customers when drinks are ready."
+version = "1.0.0"
+id = "artifacts/coffee-order-tracker"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 19613
+
+[services.development]
+run = "pnpm --filter @workspace/coffee-order-tracker run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/coffee-order-tracker", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/coffee-order-tracker/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "19613"
+BASE_PATH = "/"

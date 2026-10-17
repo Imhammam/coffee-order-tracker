@@ -5,6 +5,12 @@ dist
 tmp
 out-tsc
 *.tsbuildinfo
+artifacts/api-server/dotnet/bin/
+artifacts/api-server/dotnet/obj/
+artifacts/api-server/dotnet/publish/
+*.db
+*.db-shm
+*.db-wal
 .expo
 .expo-shared
 

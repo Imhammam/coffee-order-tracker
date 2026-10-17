@@ -10,6 +10,10 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: orders
+    description: Coffee shop orders
+  - name: dashboard
+    description: Cashier and kitchen dashboard summaries
 paths:
   /healthz:
     get:
@@ -24,6 +28,99 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /orders:
+    get:
+      operationId: listActiveOrders
+      tags: [orders]
+      summary: List active orders
+      responses:
+        "200":
+          description: Active orders ordered by creation time
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CoffeeOrder"
+    post:
+      operationId: createOrder
+      tags: [orders]
+      summary: Create a coffee shop order
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CoffeeOrderInput"
+      responses:
+        "201":
+          description: Created order
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CoffeeOrder"
+        "400":
+          description: Invalid order
+  /orders/{orderId}:
+    get:
+      operationId: getOrder
+      tags: [orders]
+      summary: Get an order for customer tracking
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Order details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CoffeeOrder"
+        "404":
+          description: Order not found
+  /orders/{orderId}/status:
+    patch:
+      operationId: updateOrderStatus
+      tags: [orders]
+      summary: Advance an order through its status
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OrderStatusInput"
+      responses:
+        "200":
+          description: Updated order
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CoffeeOrder"
+        "400":
+          description: Invalid status transition
+        "404":
+          description: Order not found
+  /dashboard/summary:
+    get:
+      operationId: getDashboardSummary
+      tags: [dashboard]
+      summary: Get current service summary
+      responses:
+        "200":
+          description: Current active and completed order counts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
 components:
   schemas:
     HealthStatus:
@@ -33,4 +130,86 @@ components:
           type: string
       required:
         - status
+    OrderStatus:
+      type: string
+      enum: [Pending, Preparing, Ready, Completed]
+    CoffeeOrderItem:
+      type: object
+      required: [id, name, quantity, price]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        quantity:
+          type: integer
+          minimum: 1
+        price:
+          type: number
+          format: double
+    CoffeeOrder:
+      type: object
+      required: [id, orderNumber, status, createdAt, totalPrice, items]
+      properties:
+        id:
+          type: integer
+        orderNumber:
+          type: integer
+        status:
+          $ref: "#/components/schemas/OrderStatus"
+        createdAt:
+          type: string
+          format: date-time
+        totalPrice:
+          type: number
+          format: double
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/CoffeeOrderItem"
+    CoffeeOrderItemInput:
+      type: object
+      required: [name, quantity, price]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        quantity:
+          type: integer
+          minimum: 1
+          maximum: 20
+        price:
+          type: number
+          format: double
+          minimum: 0
+    CoffeeOrderInput:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/CoffeeOrderItemInput"
+    OrderStatusInput:
+      type: object
+      required: [status]
+      properties:
+        status:
+          $ref: "#/components/schemas/OrderStatus"
+    DashboardSummary:
+      type: object
+      required: [pendingCount, preparingCount, readyCount, completedToday, averageWaitMinutes]
+      properties:
+        pendingCount:
+          type: integer
+        preparingCount:
+          type: integer
+        readyCount:
+          type: integer
+        completedToday:
+          type: integer
+        averageWaitMinutes:
+          type: number
+          format: double
 

@@ -7,26 +7,26 @@ id = "3B4_FFSkEVBkAeYMFRJ2e"
 [[services]]
 localPort = 8080
 name = "API Server"
-paths = ["/api"]
+paths = ["/api", "/api/hubs/orders"]
 
 [services.development]
-run = "pnpm --filter @workspace/api-server run dev"
+run = "dotnet run --project dotnet/CoffeeOrderApi.csproj --no-launch-profile"
 
 [services.production]
 
 [services.production.build]
-args = ["pnpm", "--filter", "@workspace/api-server", "run", "build"]
+args = ["dotnet", "publish", "artifacts/api-server/dotnet/CoffeeOrderApi.csproj", "--configuration", "Release", "--output", "artifacts/api-server/dotnet/publish"]
 
 [services.production.build.env]
-NODE_ENV = "production"
+ASPNETCORE_ENVIRONMENT = "Production"
 
 [services.production.run]
 # we don't run through pnpm to make startup faster in production
-args = ["node", "--enable-source-maps", "artifacts/api-server/dist/index.mjs"]
+args = ["dotnet", "artifacts/api-server/dotnet/publish/CoffeeOrderApi.dll"]
 
 [services.production.run.env]
 PORT = "8080"
-NODE_ENV = "production"
+ASPNETCORE_ENVIRONMENT = "Production"
 
 [services.production.health.startup]
 path = "/api/healthz"
