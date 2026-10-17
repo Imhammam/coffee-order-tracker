@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
 import { HubConnectionBuilder, HubConnectionState, type HubConnection } from '@microsoft/signalr';
 import {
@@ -224,6 +224,7 @@ function CashierPage() {
             <h2>One lovely order,<br />on its way.</h2>
             <p>Send this page to your customer. Their order updates as it moves through the bar.</p>
             <div className="customer-link" data-testid="text-customer-link"><span>{customerUrl}</span><button onClick={copyLink} data-testid="button-copy-order-link">{copied ? <Check size={16} /> : <Copy size={16} />}{copied ? 'Copied' : 'Copy link'}</button></div>
+            {import.meta.env.DEV && <div className="preview-note" role="note"><WifiOff size={15} /><span>This private Replit preview link is for testing. Publish the app before sharing the QR with customers.</span></div>}
             <button className="primary-button new-ticket" onClick={startNext} data-testid="button-create-another">Start another order <ArrowRight size={17} /></button>
           </div>
           <div className="ticket-card">
@@ -284,18 +285,18 @@ function KitchenPage() {
   const updateStatus = useUpdateOrderStatus();
   const client = useQueryClient();
   const [filter, setFilter] = useState<'All' | OrderStatus>('All');
-  const [soundOn, setSoundOn] = useState(false);
+  const { soundOn, toggleSound, playAlert } = useSoundAlerts();
   const previousReady = useRef<number[]>([]);
   useEffect(() => {
     if (!orders) return;
     const readyNow = orders.filter((order) => order.status === 'Ready').map((order) => order.id);
     const justReady = readyNow.filter((id) => !previousReady.current.includes(id));
     if (justReady.length && soundOn) {
-      playChime();
+      playAlert();
       if ('vibrate' in navigator) navigator.vibrate([120, 60, 180]);
     }
     previousReady.current = readyNow;
-  }, [orders, soundOn]);
+  }, [orders, soundOn, playAlert]);
   const visibleOrders = useMemo(() => (orders ?? []).filter((order) => filter === 'All' || order.status === filter)
     .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()), [orders, filter]);
   const advance = (order: CoffeeOrder) => {
@@ -308,10 +309,6 @@ function KitchenPage() {
         void client.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
       },
     });
-  };
-  const toggleSound = () => {
-    if (!soundOn) playChime();
-    setSoundOn((value) => !value);
   };
   return (
     <div className="page-content kitchen-page">
@@ -369,20 +366,16 @@ function CustomerPage() {
   const params = useParams<{ orderId: string }>();
   const orderId = Number(params.orderId);
   const { data: order, isLoading, isError, refetch } = useGetOrder(orderId, { query: { enabled: Number.isFinite(orderId) && orderId > 0, queryKey: getGetOrderQueryKey(orderId), refetchInterval: 20000 } });
-  const [soundOn, setSoundOn] = useState(false);
+  const { soundOn, toggleSound, playAlert } = useSoundAlerts();
   const previousStatus = useRef<string | null>(null);
   useEffect(() => {
     if (!order) return;
     if (previousStatus.current !== null && previousStatus.current !== 'Ready' && order.status === 'Ready') {
-      if (soundOn) playChime();
+      if (soundOn) playAlert();
       if ('vibrate' in navigator) navigator.vibrate([140, 60, 220]);
     }
     previousStatus.current = order.status;
-  }, [order, soundOn]);
-  const enableSound = () => {
-    if (!soundOn) playChime();
-    setSoundOn((value) => !value);
-  };
+  }, [order, soundOn, playAlert]);
   if (isLoading) return <div className="customer-page"><div className="customer-loading"><div className="loading-orbit" /><span>Finding your cup…</span></div></div>;
   if (isError || !order) return <div className="customer-page"><div className="customer-error"><div className="customer-logo"><Coffee size={20} /> JUNIPER</div><div className="state-icon"><QrCode size={22} /></div><h1>We can’t find that ticket.</h1><p>Double-check the link on your receipt or ask us at the counter.</p><button className="secondary-button" onClick={() => void refetch()} data-testid="button-retry-order">Try again <RefreshCw size={15} /></button><Link href="/cashier" className="customer-back">Back to Juniper</Link></div></div>;
   const currentIndex = statuses.indexOf(order.status as OrderStatus);
@@ -394,7 +387,7 @@ function CustomerPage() {
   };
   const elapsed = Math.max(0, Math.floor((Date.now() - new Date(order.createdAt).getTime()) / 60000));
   return <div className="customer-page">
-    <header className="customer-header"><Link href="/cashier" className="customer-logo"><span className="customer-brand-mark"><Coffee size={18} /></span>JUNIPER <span className="customer-wordmark-sub">COFFEE HOUSE</span></Link><button className={`customer-sound ${soundOn ? 'sound-on' : ''}`} onClick={enableSound} data-testid="button-customer-sound">{soundOn ? <Volume2 size={16} /> : <VolumeX size={16} />}<span>{soundOn ? 'Sound on' : 'Sound off'}</span></button></header>
+    <header className="customer-header"><Link href="/cashier" className="customer-logo"><span className="customer-brand-mark"><Coffee size={18} /></span>JUNIPER <span className="customer-wordmark-sub">COFFEE HOUSE</span></Link><button className={`customer-sound ${soundOn ? 'sound-on' : ''}`} onClick={toggleSound} data-testid="button-customer-sound">{soundOn ? <Volume2 size={16} /> : <VolumeX size={16} />}<span>{soundOn ? 'Sound enabled' : 'Tap to enable sound'}</span></button></header>
     <div className="customer-content">
       <div className="customer-kicker"><span className="live-dot" /> LIVE ORDER TRACKING <span className="customer-dash" /> #{String(order.orderNumber).padStart(3, '0')}</div>
       <section className={`customer-hero customer-status-${order.status.toLowerCase()}`}>
@@ -424,11 +417,46 @@ function CustomerPage() {
   </div>;
 }
 
-function playChime() {
-  try {
+function useSoundAlerts() {
+  const [soundOn, setSoundOn] = useState(false);
+  const contextRef = useRef<AudioContext | null>(null);
+
+  useEffect(() => () => {
+    if (contextRef.current) void contextRef.current.close();
+  }, []);
+
+  const toggleSound = useCallback(async () => {
+    if (soundOn) {
+      setSoundOn(false);
+      try { await contextRef.current?.suspend(); } catch {}
+      return;
+    }
+
     const AudioContextClass = window.AudioContext;
     if (!AudioContextClass) return;
-    const context = new AudioContextClass();
+    try {
+      const context = contextRef.current ?? new AudioContextClass();
+      contextRef.current = context;
+      await context.resume();
+      if (context.state !== 'running') return;
+      setSoundOn(true);
+      playChime(context);
+    } catch {}
+  }, [soundOn]);
+
+  const playAlert = useCallback(() => {
+    const context = contextRef.current;
+    if (!soundOn || !context) return;
+    void context.resume()
+      .then(() => { if (soundOn) playChime(context); })
+      .catch(() => {});
+  }, [soundOn]);
+
+  return { soundOn, toggleSound, playAlert };
+}
+
+function playChime(context: AudioContext) {
+  try {
     const now = context.currentTime;
     [659.25, 783.99].forEach((frequency, index) => {
       const oscillator = context.createOscillator();
@@ -443,7 +471,6 @@ function playChime() {
       oscillator.start(now + index * 0.13);
       oscillator.stop(now + index * 0.13 + 0.36);
     });
-    window.setTimeout(() => void context.close(), 900);
   } catch {}
 }
 

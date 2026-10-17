@@ -399,6 +399,8 @@ a { color: inherit; }
 .customer-link { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 22px 0 19px; padding: 9px 10px 9px 12px; border: 1px solid #ded3c3; border-radius: 8px; background: #faf7f0; }
 .customer-link > span { overflow: hidden; color: #766453; font: 10px var(--app-font-mono); text-overflow: ellipsis; white-space: nowrap; }
 .customer-link button { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; padding: 7px 9px; border: 0; border-radius: 6px; color: #fbf8f1; background: #684a32; font-size: 10px; cursor: pointer; }
+.preview-note { display: flex; align-items: flex-start; gap: 8px; margin: -8px 0 18px; padding: 10px 12px; border: 1px solid #ead9b7; border-radius: 8px; color: #80643e; background: #f8f0de; font-size: 10px; line-height: 1.55; }
+.preview-note svg { flex: 0 0 auto; margin-top: 1px; }
 .new-ticket { min-width: 188px; }
 .ticket-card { position: relative; padding: 21px 23px 17px; border: 1px solid #ddd2c2; border-radius: 4px; color: #44352b; background: #fbf8f0; box-shadow: 0 14px 42px #46321b12, 0 3px 7px #46321b0c; transform: rotate(1deg); }
 .ticket-card::after { content: ''; position: absolute; inset: 7px; border: 1px dashed #e4dacb; pointer-events: none; }
