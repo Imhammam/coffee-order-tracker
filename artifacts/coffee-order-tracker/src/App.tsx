@@ -44,9 +44,9 @@ function useOrderRealtime(orderId?: number, joinKitchen = false) {
   useEffect(() => {
     let alive = true;
     const connection = new HubConnectionBuilder()
-      .withUrl('/api/hubs/orders')
-      .withAutomaticReconnect()
-      .build();
+  .withUrl('https://coffee-order-tracker.onrender.com/api/hubs/orders')
+  .withAutomaticReconnect()
+  .build();
     connectionRef.current = connection;
     const refresh = (payload?: unknown) => {
       void client.invalidateQueries({ queryKey: getListActiveOrdersQueryKey() });
@@ -365,9 +365,27 @@ function OrderCard({ order, index, onAdvance, updating }: { order: CoffeeOrder; 
 function CustomerPage() {
   const params = useParams<{ orderId: string }>();
   const orderId = Number(params.orderId);
+
+  // تفعيل الاتصال الحي (SignalR) لصفحة الزبون فوراً
+  useOrderRealtime(Number.isFinite(orderId) ? orderId : undefined, false);
+
+  // طلب إذن الإشعارات من المتصفح أول ما يفتح الزبون الصفحة
+  useEffect(() => {
+    if (typeof window !== "undefined" && "Notification" in window) {
+      if (Notification.permission === "default") {
+        Notification.requestPermission().then((permission) => {
+          if (permission === "granted") {
+            console.log("Notification permission granted by customer.");
+          }
+        });
+      }
+    }
+  }, []);
+
   const { data: order, isLoading, isError, refetch } = useGetOrder(orderId, { query: { enabled: Number.isFinite(orderId) && orderId > 0, queryKey: getGetOrderQueryKey(orderId), refetchInterval: 20000 } });
   const { soundOn, toggleSound, playAlert } = useSoundAlerts();
   const previousStatus = useRef<string | null>(null);
+
   useEffect(() => {
     if (!order) return;
     if (previousStatus.current !== null && previousStatus.current !== 'Ready' && order.status === 'Ready') {
@@ -376,8 +394,10 @@ function CustomerPage() {
     }
     previousStatus.current = order.status;
   }, [order, soundOn, playAlert]);
+
   if (isLoading) return <div className="customer-page"><div className="customer-loading"><div className="loading-orbit" /><span>Finding your cup…</span></div></div>;
   if (isError || !order) return <div className="customer-page"><div className="customer-error"><div className="customer-logo"><Coffee size={20} /> JUNIPER</div><div className="state-icon"><QrCode size={22} /></div><h1>We can’t find that ticket.</h1><p>Double-check the link on your receipt or ask us at the counter.</p><button className="secondary-button" onClick={() => void refetch()} data-testid="button-retry-order">Try again <RefreshCw size={15} /></button><Link href="/cashier" className="customer-back">Back to Juniper</Link></div></div>;
+  
   const currentIndex = statuses.indexOf(order.status as OrderStatus);
   const progressCopy: Record<OrderStatus, { title: string; subtitle: string }> = {
     Pending: { title: 'We’ve got your order.', subtitle: 'The baristas have your ticket. Good things take a moment.' },
@@ -386,6 +406,7 @@ function CustomerPage() {
     Completed: { title: 'That was a good one.', subtitle: 'Thanks for making Juniper part of your day.' },
   };
   const elapsed = Math.max(0, Math.floor((Date.now() - new Date(order.createdAt).getTime()) / 60000));
+  
   return <div className="customer-page">
     <header className="customer-header"><Link href="/cashier" className="customer-logo"><span className="customer-brand-mark"><Coffee size={18} /></span>JUNIPER <span className="customer-wordmark-sub">COFFEE HOUSE</span></Link><button className={`customer-sound ${soundOn ? 'sound-on' : ''}`} onClick={toggleSound} data-testid="button-customer-sound">{soundOn ? <Volume2 size={16} /> : <VolumeX size={16} />}<span>{soundOn ? 'Sound enabled' : 'Tap to enable sound'}</span></button></header>
     <div className="customer-content">
@@ -409,8 +430,8 @@ function CustomerPage() {
       </section>
       <section className="customer-receipt">
         <div className="receipt-head"><span>YOUR CUP, YOUR WAY</span><span>#{String(order.orderNumber).padStart(3, '0')}</span></div>
-        <div className="receipt-items">{order.items.map((item) => <div className="receipt-item" key={item.id}><span><b>{item.quantity} ×</b> {item.name}</span><strong>${(item.quantity * item.price).toFixed(2)}</strong></div>)}</div>
-        <div className="receipt-total"><span>Total paid</span><strong>${order.totalPrice.toFixed(2)}</strong></div>
+        <div className="receipt-items">{order.items.map((item) => <div className="receipt-item" key={item.id}><span><b>{item.quantity} ×</b> {item.name}</span><strong>\${(item.quantity * item.price).toFixed(2)}</strong></div>)}</div>
+        <div className="receipt-total"><span>Total paid</span><strong>\${order.totalPrice.toFixed(2)}</strong></div>
       </section>
       <footer className="customer-footer"><span>GOOD COFFEE. GOOD NEIGHBORS.</span><span>JUNIPER COFFEE HOUSE · EST. 2018</span></footer>
     </div>

@@ -15,7 +15,7 @@ const DEFAULT_JSON_ACCEPT = "application/json, application/problem+json";
 // Module-level configuration
 // ---------------------------------------------------------------------------
 
-let _baseUrl: string | null = null;
+let _baseUrl: string | null = "https://coffee-order-tracker.onrender.com";
 let _authTokenGetter: AuthTokenGetter | null = null;
 
 /**
@@ -26,7 +26,7 @@ let _authTokenGetter: AuthTokenGetter | null = null;
  * Pass `null` to clear the base URL.
  */
 export function setBaseUrl(url: string | null): void {
-  _baseUrl = url ? url.replace(/\/+$/, "") : null;
+  _baseUrl = url ? url.replace(/\/+\$/, "") : null;
 }
 
 /**
@@ -145,7 +145,7 @@ function getStringField(value: unknown, key: string): string | undefined {
 }
 
 function truncate(text: string, maxLength = 300): string {
-  return text.length > maxLength ? `${text.slice(0, maxLength - 1)}…` : text;
+  return text.length > maxLength ? `${text.slice(0, maxLength)}…` : text;
 }
 
 function buildErrorMessage(response: Response, data: unknown): string {

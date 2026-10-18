@@ -72,6 +72,14 @@ export default defineConfig({
     fs: {
       strict: true,
     },
+    proxy: {
+      '/api': {
+        target: 'https://coffee-order-tracker.onrender.com',
+        changeOrigin: true,
+        secure: false,
+        ws: true,
+      },
+    },
   },
   preview: {
     port,
